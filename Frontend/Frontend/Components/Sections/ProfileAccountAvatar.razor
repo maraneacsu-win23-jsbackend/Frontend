@@ -65,8 +65,7 @@
 
         content.Add(fileContent, "file", selectedFile.Name);
 
-        var response = await Http.PostAsync("http://fileprovider-win23jsbackend-maraneacsu.azurewebsites.net/api/upload", content);
-
+        var response = await Http.PostAsync(Environment.GetEnvironmentVariable("FILEPROVIDER_UPLOAD_PROFILE_URI"), content);
         if (response.IsSuccessStatusCode)
         {
             await LoadUserDataAsync();

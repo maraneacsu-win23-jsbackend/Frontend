@@ -1,0 +1,77 @@
+﻿@page "/profile"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject HttpClient Http
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <section class="account-profile">
+            <div class="profile">
+                <div class="profile-image">
+                    <img src="/images/uploads/profiles/@user.ProfileImage" alt="Profile picture of @user.FirstName @user.LastName" />
+
+                    <EditForm Model="this" OnValidSubmit="HandleProfileUpload" Context="editContext">
+                        <InputFile id="fileUploader" OnChange="HandleFileSelected" hidden />
+                        <label for="fileUploader" class="btn btn-circle btn-circle-sm">
+                            <i class="fa-regular fa-refresh"></i> Change Picture
+                        </label>
+                    </EditForm>
+                </div>
+
+                <div class="profile-info">
+                    <h3 class="display-name">@user.FirstName @user.LastName</h3>
+                    <p>@user.Email</p>
+                </div>
+            </div>
+        </section>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private ApplicationUser user = new ApplicationUser();
+    private IBrowserFile? selectedFile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserDataAsync();
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+    }
+
+    private async Task LoadUserDataAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdentity = authState.User;
+
+        if (userIdentity.Identity?.IsAuthenticated == true)
+        {
+            user = await UserManager.GetUserAsync(userIdentity) ?? new ApplicationUser();
+        }
+    }
+
+    public async Task HandleProfileUpload()
+    {
+        if (selectedFile == null)
+        {
+            return;
+        }
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)); // Limit size to 10 MB
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(selectedFile.ContentType);
+
+        content.Add(fileContent, "file", selectedFile.Name);
+
+        var response = await Http.PostAsync("http://fileprovider-win23jsbackend-maraneacsu.azurewebsites.net/api/upload", content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadUserDataAsync();
+            StateHasChanged();
+        }
+    }
+}
+
